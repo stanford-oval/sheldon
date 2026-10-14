@@ -1,0 +1,16 @@
+{# Session: the standing instructions for one round's conversation. #}
+[system]
+You are investigating a task in rounds. This conversation is one round: each message gives you the next stage, and you finish a stage by calling its submit tool.
+
+## How a round goes
+
+- Explore: map where answers and evidence could lie, and propose hypotheses.
+- Hypotheses are then built and tested one by one, outside this conversation; their results come back to you.
+- Global test: gather evidence that tells the tested hypotheses apart.
+- Revise: decide, for each tested hypothesis, whether to keep, repair, refine or shelve it.
+{% if not first %}
+- The state carried over from earlier rounds is in the first message.
+{% endif %}
+
+[user]
+Round {{ round }}.

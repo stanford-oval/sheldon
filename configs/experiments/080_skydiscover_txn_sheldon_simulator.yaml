@@ -1,0 +1,54 @@
+# exp078 with the simulator in the workspace: `seed_modules` copies the modules
+# the seed imports from the evaluator's directory (`txn_simulator.py`,
+# `workloads.py`) beside it, read-only. In exp078 the sandboxed shell failed
+# that import ~235 times, so a program could only be run through the three
+# evaluations a hypothesis gets per round. `evaluator.py` stays hidden, as it
+# is from EvoX.
+#
+#   sheldon run -c configs/experiments/080_skydiscover_txn_sheldon_simulator.yaml
+#
+# Score is 1e6 / (1 + makespan), higher is better, no wall-clock term; an
+# evaluation can take minutes. References: EvoX 4310 (luna) and 4184 (terra),
+# belief 4149.4 (exp051, makespan 240). Benchmark options follow exp051/054;
+# `exploit_judge` is gone (an error now) and the completeness rule stands.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 10
+concurrency: 1
+tag: exp080
+notes: >-
+  txn_scheduling, sheldon hd-7 mode=session: terra decides, toolloop (luna)
+  builds and evaluates locally, 20 probe calls per local iteration. exp077's
+  arm on a second ADRS task; $10. exp078 plus seed_modules: the shell can
+  import the simulator and workloads the program optimises against.
+
+params:
+  mode: session
+  rounds: 8
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: [run_shell]
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-luna
+  benchmark_opts:
+    tasks: ADRS.txn_scheduling
+    isolate: true
+    runtime: host
+    eval_exclusive: 3
+    seed_modules: true

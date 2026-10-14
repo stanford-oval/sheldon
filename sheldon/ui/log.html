@@ -1,0 +1,331 @@
+<meta charset="utf-8">
+<title>Sheldon Call Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+/* Same ink and paper as the trace console, so the two read as one tool. The
+   difference is proportion: this page exists to read long prose, so the rail is
+   narrow and the reading column takes everything else.
+
+   Light is the base set; the two blocks after it redefine tokens only, so no
+   colour is declared solely inside a media query or a [data-theme] block --
+   that is what breaks the un-stamped "system" state. */
+:root {
+  --paper:     #FFFFFF;
+  --chrome:    #F4F3F1;
+  --sunken:    #E8E6E2;
+  --line:      #DCD9D3;
+  --line-soft: #EBE9E5;
+  --ink:       #1B1A18;
+  --ink-2:     #46443F;
+  --muted:     #67635C;
+  --mark:      #B4231F;
+  --mark-bg:   #FBE7E4;
+  --hold:      #2C6549;
+  --hold-bg:   #E3EDE6;
+  --flag:      #8A6100;
+  --flag-bg:   #F6EEDC;
+  --rail: 300px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #1A191D; --chrome: #121215; --sunken: #26252A;
+    --line: #33323A; --line-soft: #252429;
+    --ink: #ECEAE5; --ink-2: #BAB6AE; --muted: #98938A;
+    --mark: #F0766B; --mark-bg: #3A2220;
+    --hold: #7FBF9A; --hold-bg: #1E2E25;
+    --flag: #D9AB57; --flag-bg: #322818;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #1A191D; --chrome: #121215; --sunken: #26252A;
+  --line: #33323A; --line-soft: #252429;
+  --ink: #ECEAE5; --ink-2: #BAB6AE; --muted: #98938A;
+  --mark: #F0766B; --mark-bg: #3A2220;
+  --hold: #7FBF9A; --hold-bg: #1E2E25;
+  --flag: #D9AB57; --flag-bg: #322818;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 14px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  display: grid; grid-template-columns: var(--rail) minmax(0, 1fr);
+}
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* -- rail ------------------------------------------------------------- */
+#rail {
+  background: var(--chrome); border-right: 1px solid var(--line);
+  overflow-y: auto; height: 100vh; padding-bottom: 40px;
+}
+#rail h1 {
+  font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); margin: 0; padding: 14px 14px 8px; font-weight: 600;
+}
+.run-group { border-top: 1px solid var(--line-soft); }
+button.run {
+  display: block; width: 100%; text-align: left; padding: 9px 14px;
+  color: var(--ink);
+}
+button.run:hover { background: var(--sunken); }
+button.run .who { font-weight: 600; }
+button.run .meta { color: var(--muted); font-size: 12px; margin-top: 1px; }
+.tasks { display: none; }
+.run-group.open .tasks { display: block; }
+.run-group.open > button.run { background: var(--sunken); }
+.task {
+  display: flex; gap: 8px; align-items: baseline; width: 100%; text-align: left;
+  padding: 6px 14px 6px 22px; color: var(--ink-2);
+  font: 12px/1.4 "IBM Plex Mono", ui-monospace, monospace;
+}
+.task:hover { background: var(--sunken); }
+.task.sel { background: var(--paper); color: var(--ink); font-weight: 600;
+            box-shadow: inset 3px 0 0 var(--ink); }
+.task .id { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task .n { color: var(--muted); }
+
+/* -- main ------------------------------------------------------------- */
+#main { overflow-y: auto; height: 100vh; }
+#head {
+  position: sticky; top: 0; z-index: 2; background: var(--paper);
+  border-bottom: 1px solid var(--line); padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+#head .title { font-weight: 600; }
+#head .sub { color: var(--muted); font-size: 12px; }
+#head .spacer { flex: 1; }
+#head button.ctl {
+  border: 1px solid var(--line); border-radius: 5px; padding: 4px 10px;
+  font-size: 12px; color: var(--ink-2); background: var(--paper);
+}
+#head button.ctl:hover { background: var(--sunken); }
+#body { padding: 16px 20px 80px; max-width: 1100px; }
+.empty { color: var(--muted); padding: 40px 20px; }
+
+.call { border: 1px solid var(--line); border-radius: 7px; margin-bottom: 10px;
+        background: var(--paper); overflow: hidden; }
+.call > summary {
+  list-style: none; cursor: pointer; padding: 9px 12px; display: flex;
+  gap: 9px; align-items: baseline; flex-wrap: wrap; background: var(--chrome);
+}
+.call > summary::-webkit-details-marker { display: none; }
+.call > summary:hover { background: var(--sunken); }
+.call .idx { color: var(--muted); font: 12px "IBM Plex Mono", monospace; min-width: 26px; }
+.tag {
+  font: 11px/1.6 "IBM Plex Mono", monospace; font-weight: 600;
+  padding: 0 7px; border-radius: 999px; background: var(--sunken); color: var(--ink-2);
+}
+.tag.falsify { background: var(--mark-bg); color: var(--mark); }
+.tag.finalize, .tag.explore { background: var(--hold-bg); color: var(--hold); }
+.tag.revise, .tag.sharpen { background: var(--flag-bg); color: var(--flag); }
+.call .facts { color: var(--muted); font: 12px "IBM Plex Mono", monospace;
+               margin-left: auto; text-align: right; }
+.pill { font: 11px/1.6 "IBM Plex Mono", monospace; padding: 0 6px;
+        border-radius: 4px; background: var(--sunken); color: var(--muted); }
+.pill.cached { background: var(--hold-bg); color: var(--hold); }
+
+.panes { border-top: 1px solid var(--line); }
+.pane { border-bottom: 1px solid var(--line-soft); }
+.pane:last-child { border-bottom: 0; }
+.pane > h3 {
+  margin: 0; padding: 7px 12px; font-size: 11px; font-weight: 600;
+  letter-spacing: .07em; text-transform: uppercase; color: var(--muted);
+  background: var(--paper);
+}
+.pane .role { font: 11px "IBM Plex Mono", monospace; color: var(--muted);
+              padding: 0 12px 4px; }
+pre {
+  margin: 0; padding: 0 12px 12px; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 12.5px/1.6 "IBM Plex Mono", ui-monospace, monospace; color: var(--ink);
+  max-height: 60vh; overflow-y: auto;
+}
+pre.wide { white-space: pre; overflow-x: auto; }
+.pane.out pre { color: var(--ink); }
+.tools { padding: 0 12px 10px; color: var(--muted);
+         font: 11.5px "IBM Plex Mono", monospace; }
+</style>
+
+<div id="rail"><h1>runs</h1><div id="runs"></div></div>
+<div id="main">
+  <div id="head">
+    <span class="title" id="title">Sheldon Call Log</span>
+    <span class="sub" id="sub">pick a task</span>
+    <span class="spacer"></span>
+    <button class="ctl" id="expand">expand all</button>
+    <button class="ctl" id="theme">theme</button>
+  </div>
+  <div id="body"><div class="empty">Choose a run on the left, then a task, to read every model call it made.</div></div>
+</div>
+
+<script>
+const DATA = __DATA__;
+const $ = (s) => document.querySelector(s);
+let current = null;
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+}
+function num(n, d) { return n == null ? "-" : Number(n).toFixed(d === undefined ? 0 : d); }
+
+/* -- rail ------------------------------------------------------------- */
+function drawRail() {
+  const host = $("#runs");
+  DATA.runs.forEach((run, i) => {
+    const el = document.createElement("div");
+    el.className = "run-group";
+    const score = run.score == null ? "-" : Number(run.score).toFixed(3);
+    el.innerHTML =
+      '<button class="run"><span class="who">' + esc(run.method) + " &middot; " + esc(run.benchmark) + "</span>" +
+      '<div class="meta">' + esc(run.tag || "no tag") + " &middot; n=" + esc(run.n) +
+      " &middot; score " + score + " &middot; " + esc(run.calls) + " calls</div></button>" +
+      '<div class="tasks"></div>';
+    const tasks = el.querySelector(".tasks");
+    run.tasks.forEach((t) => {
+      const b = document.createElement("button");
+      b.className = "task";
+      const sc = t.error ? "err" : (t.score == null ? "-" : Number(t.score).toFixed(2));
+      b.innerHTML = '<span class="id">' + esc(t.task_id) + "</span>" +
+                    '<span class="n">' + esc(t.calls) + "&times; " + esc(sc) + "</span>";
+      b.onclick = () => open(run, t, b);
+      tasks.appendChild(b);
+    });
+    el.querySelector("button.run").onclick = () => el.classList.toggle("open");
+    if (i === 0) el.classList.add("open");
+    host.appendChild(el);
+  });
+}
+
+/* -- one task's calls -------------------------------------------------- */
+async function open(run, task, button) {
+  document.querySelectorAll(".task.sel").forEach((e) => e.classList.remove("sel"));
+  button.classList.add("sel");
+  $("#title").textContent = task.task_id;
+  $("#sub").textContent = run.method + " / " + run.benchmark + " / " + (run.tag || "no tag") +
+                          "  -  " + task.calls + " calls, $" + num(task.usd, 3);
+  $("#body").innerHTML = '<div class="empty">loading...</div>';
+
+  let payload = task._calls;
+  if (!payload) {
+    try {
+      const r = await fetch("/calls/" + encodeURIComponent(run.dir) + "/" +
+                            encodeURIComponent(task.task_id));
+      if (!r.ok) throw new Error(r.status);
+      payload = await r.json();
+      task._calls = payload;
+    } catch (e) {
+      $("#body").innerHTML = '<div class="empty">Could not load this task&rsquo;s calls (' +
+        esc(e.message) + ').<br>Call bodies are fetched from the server, so this page needs ' +
+        '<code>sheldon log --serve</code> rather than a <code>file://</code> URL.</div>';
+      return;
+    }
+  }
+  current = payload;
+  draw(payload);
+}
+
+function draw(payload) {
+  const body = $("#body");
+  body.innerHTML = "";
+  if (!payload.calls.length) {
+    body.innerHTML = '<div class="empty">No model calls recorded for this task.</div>';
+    return;
+  }
+  payload.calls.forEach((c) => body.appendChild(callEl(c)));
+}
+
+function callEl(c) {
+  const d = document.createElement("details");
+  d.className = "call";
+  const u = c.usage || {};
+  const stage = String(c.tag || "?").split(".")[0];
+  const facts = [
+    u.input_tokens != null ? u.input_tokens + " in" : null,
+    u.output_tokens != null ? u.output_tokens + " out" : null,
+    u.cost_usd != null ? "$" + num(u.cost_usd, 4) : null,
+    c.t != null ? num(c.t) + "s" : null,
+  ].filter(Boolean).join("  ");
+
+  const sum = document.createElement("summary");
+  sum.innerHTML =
+    '<span class="idx">#' + esc(c.index) + "</span>" +
+    '<span class="tag ' + esc(stage) + '">' + esc(c.tag || "?") + "</span>" +
+    (c.cached ? '<span class="pill cached">cached</span>' : "") +
+    '<span class="pill">' + esc(c.model || "?") + "</span>" +
+    (c.stop_reason ? '<span class="pill">' + esc(c.stop_reason) + "</span>" : "") +
+    '<span class="facts">' + esc(facts) + "</span>";
+  d.appendChild(sum);
+
+  const panes = document.createElement("div");
+  panes.className = "panes";
+
+  if (c.system) panes.appendChild(pane("system prompt", c.system));
+  (c.messages || []).forEach((m, i) => {
+    const label = "message " + (i + 1) + " \u00B7 " + (m.role || "?");
+    panes.appendChild(pane(label, content(m.content)));
+  });
+  if (c.tools_offered && c.tools_offered.length) {
+    const p = document.createElement("div");
+    p.className = "pane";
+    p.innerHTML = "<h3>tools offered</h3><div class='tools'>" +
+                  esc(c.tools_offered.join(", ")) + "</div>";
+    panes.appendChild(p);
+  }
+  const reply = c.text && c.text.trim() ? c.text : null;
+  panes.appendChild(pane("reply", reply || "(no text \u2014 the turn was tool calls only)", true));
+  if (c.tool_use && c.tool_use.length) {
+    panes.appendChild(pane("tool calls", JSON.stringify(c.tool_use, null, 2), true, true));
+  }
+  d.appendChild(panes);
+  return d;
+}
+
+function pane(title, text, isOut, wide) {
+  const p = document.createElement("div");
+  p.className = "pane" + (isOut ? " out" : "");
+  const h = document.createElement("h3");
+  h.textContent = title;
+  const pre = document.createElement("pre");
+  if (wide) pre.className = "wide";
+  pre.textContent = text;
+  p.appendChild(h); p.appendChild(pre);
+  return p;
+}
+
+/* A message's content is a string, or the content-block list a tool turn uses. */
+function content(c) {
+  if (typeof c === "string") return c;
+  if (!Array.isArray(c)) return JSON.stringify(c, null, 2);
+  return c.map((b) => {
+    if (typeof b === "string") return b;
+    if (b.type === "text") return b.text;
+    if (b.type === "tool_result") {
+      return "[tool_result " + (b.tool_use_id || "") + "]\n" + content(b.content);
+    }
+    if (b.type === "tool_use") {
+      return "[tool_use " + b.name + "]\n" + JSON.stringify(b.input, null, 2);
+    }
+    return JSON.stringify(b, null, 2);
+  }).join("\n\n");
+}
+
+$("#expand").onclick = () => {
+  const all = document.querySelectorAll(".call");
+  const anyClosed = [...all].some((d) => !d.open);
+  all.forEach((d) => { d.open = anyClosed; });
+  $("#expand").textContent = anyClosed ? "collapse all" : "expand all";
+};
+$("#theme").onclick = () => {
+  const root = document.documentElement;
+  const dark = getComputedStyle(root).getPropertyValue("--paper").trim().toLowerCase() !== "#ffffff";
+  root.setAttribute("data-theme", dark ? "light" : "dark");
+};
+
+drawRail();
+</script>

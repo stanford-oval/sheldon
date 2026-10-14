@@ -1,0 +1,66 @@
+# ARC-AGI-2, `direct` on the Recursive Language Model engine.
+#
+#   sheldon run -c configs/experiments/092_arc_agi_2_rlm.yaml --tag exp092
+#
+# RLM (github.com/alexzhang13/rlm) replaces one completion with a loop where
+# the model writes Python into a REPL and may call itself over slices of its
+# own context. That is an engine, not a method, so it runs under `direct` the
+# way codex does in exp036.
+#
+# Its own row, never beside the toolloop runs. RLM brings its own REPL rather
+# than taking `ctx.tools`, and its model calls do not pass through the
+# harness's cache or trace, so it is in codex's category: not comparable to
+# exp022/087/090/091, which are all offered the benchmark's sandbox and nothing
+# else.
+#
+# `isolate` is mandatory here, for the reason exp036 gives: the REPL executes
+# model-written code and `data/arc-agi-2/evaluation/<id>.json` holds every
+# answer. The call runs under bubblewrap with the virtual environment mounted
+# read-only so Python can start, a per-call working directory mounted
+# writable, and no part of the repository visible. The run refuses to start
+# without bubblewrap.
+#
+#
+# Budget shape, set from measurement rather than guessed. One iteration runs
+# about 90 seconds here, so a 900 s wall-clock limit bound before the iteration
+# cap: RLM then *raised* `TimeoutExceededError` instead of returning, which
+# both skipped the final call and threw away the usage for twelve iterations
+# that had already been paid for -- a task reported at $0.00 after eighteen
+# minutes of real calls. `max_timeout` is now well above what the iteration cap
+# can reach, so the cap binds, RLM returns normally with its token counts, and
+# the engine's own subprocess timeout is the outer backstop.
+#
+# `rates` prices terra's tokens, since the endpoint returns no cost and RLM
+# therefore reports none; `max_usd` cannot stop a call from outside, so the
+# iteration cap is what bounds one.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+limit: 20
+method: direct
+engine: rlm
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 2.5
+concurrency: 5
+
+tag: exp092
+notes: >-
+  ARC-AGI-2 eval, first 20: direct on the RLM engine, terra, isolated REPL.
+  Its own row; RLM brings its own tools and its own uncached calls.
+
+params:
+  probes: []
+  benchmark_opts:
+    isolate: true
+  engine_params:
+    isolate: true
+    cwd: scratch/rlm-arc-work
+    max_iterations: 8
+    max_depth: 1
+    max_timeout: 1200
+    timeout: 1500
+    rates: [2.50, 15.00]

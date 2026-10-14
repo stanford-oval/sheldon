@@ -1,0 +1,67 @@
+# exp083 continued: llm_sql under the same conditions with the cap raised to
+# $40, so the run picks up where the $20 one stopped (0.7251 combined, 7
+# rounds, 59 programs, `budget:max_usd=20`).
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)/llm.db \
+#   sheldon run -c configs/experiments/091_skydiscover_llm_sql_continue40.yaml --tag exp091
+#
+# sheldon has no checkpoints and the runner's resume is per task, so the
+# continuation is the LLM cache: `_cached` replays the stored `usage`, so
+# `Budget` is charged what the first rounds really cost and the loop reaches
+# its old stopping state having spent $20 of the $40, then runs live.
+#
+# Expect a weaker replay here than on dockstring. llm_sql's scorer is racy --
+# `evaluate_df_prefix_hit_cnt` shares a trie across a ThreadPoolExecutor, so
+# the same program measures differently by host and time -- and that number
+# goes back into the conversation, so a request downstream of any evaluation
+# is a cache miss. The rounds that only reason replay; the rounds that measure
+# will re-run live. Real spend is therefore between $20 and $40.
+#
+# Everything else is config 083 unchanged: another param would move
+# `config_hash`, and a different hash cannot be served the old prefix.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 40
+concurrency: 1
+tag: exp091
+notes: >-
+  llm_sql continuation of exp083, sheldon hd-8b session mode on terra,
+  $40 per task of which the first $20 replays from exp083's cache. One
+  evaluation at a time, niced agent shells, time limit stated, solver.py in
+  the workspace.
+
+params:
+  mode: session
+  rounds: 12
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: [run_shell]
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    tasks: ADRS.llm_sql
+    isolate: true
+    runtime: host
+    sandbox_python: /path/to/sheldon/.venv   # absolute path to this checkout's virtualenv
+    eval_timeout: 900
+    show_evaluator: true
+    eval_exclusive: 1
+    seed_modules: true
+    shell_nice: 10
+    state_timeout: true

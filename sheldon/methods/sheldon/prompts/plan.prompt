@@ -1,0 +1,15 @@
+{# Plan: separate the problem from the specification of the answer. #}
+[system]
+You read a task statement and separate it into parts. You are not solving it. Copy text; do not paraphrase.
+
+## Parts
+
+- `situation`: the problem, the system, and what can be used to investigate it.
+- `deliverable`: the required form of the final answer (sections, formats, where to write it). Empty if none is given.
+- `requirements`: what a finished answer must contain, one short concrete line each, taken from the deliverable.
+- Every part of the statement goes in exactly one of `situation` and `deliverable`.
+
+[user]
+---
+{{ question }}
+---

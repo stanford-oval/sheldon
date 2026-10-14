@@ -1,0 +1,883 @@
+<meta charset="utf-8">
+<title>Sheldon Trace Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+/* A proofreader's markup: manuscript ground, graphite ink, and red spent only
+   on refutation — the one thing this tool exists to show. Everything else is
+   neutral, so the failures are the only colour on the page and scanning for
+   them needs no legend.
+
+   Light is the base set; the two blocks after it redefine tokens only, so no
+   colour is declared solely inside a media query or a [data-theme] block —
+   that is what breaks the un-stamped "system" state. */
+:root {
+  --paper:     #FFFFFF;   /* the reading surface: the brightest thing here */
+  --chrome:    #F4F3F1;   /* rails, held back so the trace comes forward */
+  --sunken:    #E8E6E2;
+  --line:      #DCD9D3;
+  --line-soft: #EBE9E5;
+  --ink:       #1B1A18;
+  --ink-2:     #46443F;
+  --muted:     #67635C;
+  --mark:      #B4231F;   /* the pen. refutation, failure, and nothing else */
+  --mark-bg:   #FBE7E4;
+  --hold:      #2C6549;   /* survived */
+  --hold-bg:   #E3EDE6;
+  --flag:      #8A6100;   /* partial, revision */
+  --flag-bg:   #F6EEDC;
+  --rail: 264px;
+  --list: 296px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:     #1A191D;
+    --chrome:    #121215;
+    --sunken:    #26252A;
+    --line:      #33323A;
+    --line-soft: #252429;
+    --ink:       #ECEAE5;
+    --ink-2:     #BAB6AE;
+    --muted:     #98938A;
+    --mark:      #F0766B;
+    --mark-bg:   #3A1E1B;
+    --hold:      #79C398;
+    --hold-bg:   #1B2E23;
+    --flag:      #DFB358;
+    --flag-bg:   #322612;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper:     #1A191D;
+  --chrome:    #121215;
+  --sunken:    #26252A;
+  --line:      #33323A;
+  --line-soft: #252429;
+  --ink:       #ECEAE5;
+  --ink-2:     #BAB6AE;
+  --muted:     #98938A;
+  --mark:      #F0766B;
+  --mark-bg:   #3A1E1B;
+  --hold:      #79C398;
+  --hold-bg:   #1B2E23;
+  --flag:      #DFB358;
+  --flag-bg:   #322612;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* `color` and `font` do not inherit into form controls — the UA substitutes
+   `buttontext`, which is black whatever the theme. Every button on this page is
+   a styled surface, not a platform control, so opt all of them back into
+   inheritance rather than remembering it at each call site. */
+button, input { color: inherit; font: inherit; }
+
+body {
+  margin: 0;
+  background: var(--chrome);
+  color: var(--ink);
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+.num  { font-variant-numeric: tabular-nums; }
+
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+
+/* ---------- shell ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--rail) var(--list) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+}
+
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 18px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--line);
+}
+header h1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+/* The one place the pen shows outside the data. */
+header h1 em { font-style: normal; font-weight: 400; color: var(--muted); }
+header h1 i  { font-style: normal; color: var(--mark); }
+.meta { color: var(--muted); font-size: 12px; }
+.spacer { margin-left: auto; }
+
+button.ghost {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+button.ghost:hover { background: var(--sunken); color: var(--ink); }
+
+/* ---------- panes ---------- */
+
+.pane { overflow-y: auto; min-height: 0; }
+.rail  { background: var(--chrome); border-right: 1px solid var(--line); }
+.tasks { background: var(--chrome); border-right: 1px solid var(--line); }
+.trace { background: var(--paper); }
+
+.pane-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 9px 14px 8px;
+}
+.trace .pane-head { background: var(--paper); border-bottom-color: var(--line); }
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ---------- run rail ---------- */
+
+.bench {
+  padding: 12px 14px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Selection is greyscale on purpose: red already means refuted, and a second
+   meaning for the same colour would make the task strip unreadable. */
+.run {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  padding: 8px 14px;
+}
+.run:hover { background: var(--sunken); }
+.run[aria-current="true"] { background: var(--sunken); border-left-color: var(--ink); }
+
+.run-top { display: flex; align-items: baseline; gap: 8px; }
+.run-method { font-weight: 600; font-size: 13px; }
+.run-tag {
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+.run-score { margin-left: auto; font-weight: 600; font-size: 13px; }
+.run-err { color: var(--mark); }
+.run-sub { display: flex; gap: 9px; font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+/* Score as a measurement bar, in ink — it is a quantity, not a status. */
+.bar { display: block; height: 3px; background: var(--sunken); border-radius: 2px; margin-top: 6px; }
+.run[aria-current="true"] .bar { background: var(--line); }
+.bar > i { display: block; height: 100%; background: var(--ink-2); border-radius: 2px; }
+
+/* ---------- task list ---------- */
+
+.filters { display: flex; gap: 6px; margin-top: 8px; }
+.filters input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 8px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.toggle {
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.toggle[aria-pressed="true"] {
+  background: var(--mark-bg);
+  border-color: var(--mark);
+  color: var(--mark);
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 7px 14px;
+}
+.task:hover { background: var(--sunken); }
+.task[aria-current="true"] { background: var(--sunken); border-left-color: var(--ink); }
+.task-id { font-size: 12px; }
+.task-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* A failure is a filled mark; a pass is a hollow one. The column then reads as
+   a strip of marks in a margin, which is the thing being scanned for. */
+.chip {
+  width: 9px; height: 9px; border-radius: 50%; flex: none;
+  background: var(--mark);
+  box-shadow: inset 0 0 0 1px var(--mark);
+}
+.chip.pass { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
+.chip.part { background: var(--flag); box-shadow: inset 0 0 0 1px var(--flag); }
+
+/* ---------- comparison strip ---------- */
+
+.compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 18px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+}
+.cmp {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 4px 9px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.cmp:hover { border-color: var(--ink-2); color: var(--ink); }
+.cmp[aria-current="true"] { border-color: var(--ink); background: var(--sunken); color: var(--ink); }
+.cmp b { font-weight: 600; }
+.cmp span.tag { color: var(--muted); }
+
+/* ---------- trace stream ---------- */
+
+.stream { padding: 4px 18px 64px; max-width: 1180px; }
+
+.ev {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.ev-time { color: var(--muted); font-size: 11px; text-align: right; padding-top: 2px; }
+
+.ev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kind {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  padding: 1px 7px;
+  border-radius: 3px;
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+.kind.llm      { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.kind.refuted  { background: var(--mark-bg); color: var(--mark); }
+.kind.survived { background: var(--hold-bg); color: var(--hold); }
+.kind.revise   { background: var(--flag-bg); color: var(--flag); }
+.ev-note { font-size: 12px; color: var(--muted); }
+
+.block { margin-top: 7px; }
+.block > summary {
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 0;
+  list-style: none;
+}
+.block > summary::-webkit-details-marker { display: none; }
+.block > summary::before { content: "\25B8\00a0"; color: var(--line); }
+.block[open] > summary::before { content: "\25BE\00a0"; }
+.block > summary:hover { color: var(--ink-2); }
+
+pre {
+  margin: 4px 0 0;
+  padding: 9px 12px;
+  background: var(--chrome);
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--line);
+  border-radius: 3px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  color: var(--ink-2);
+}
+pre.assistant { border-left-color: var(--ink); color: var(--ink); background: var(--paper); }
+pre.call      { border-left-color: var(--flag); }
+pre.result    { border-left-color: var(--hold); }
+pre.bad       { border-left-color: var(--mark); }
+
+.empty { padding: 44px 22px; color: var(--muted); max-width: 46ch; }
+.empty h2 { font-size: 15px; font-weight: 600; color: var(--ink); margin: 0 0 6px; }
+.empty code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--sunken);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.stat { display: flex; gap: 20px; flex-wrap: wrap; padding: 14px 18px 4px; }
+.stat div { font-size: 11px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.stat b {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  margin-top: 1px;
+}
+
+/* ---------- belief state ---------- */
+
+.belief {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--chrome);
+  padding: 12px 14px;
+  margin: 12px 0 4px;
+}
+.belief > .eyebrow { margin-bottom: 8px; }
+
+/* Rounds across, hypotheses down: the ranking is the shape of the column. */
+.track { overflow-x: auto; margin: 6px 0 10px; }
+.track table { border-collapse: collapse; font-size: 12px; width: 100%; }
+.track th, .track td {
+  padding: 4px 7px;
+  text-align: right;
+  border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.track th { font-weight: 600; color: var(--muted); font-size: 10px;
+            letter-spacing: .08em; text-transform: uppercase; }
+.track td.hid, .track th.hid { text-align: left; width: 1%; }
+.track td.hid { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.track tr.dead td { color: var(--muted); }
+.track .cell { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.track .cred { font-variant-numeric: tabular-nums; }
+.track .rank {
+  display: inline-block;
+  min-width: 15px;
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.track .lead .rank { color: var(--ink); font-weight: 600; }
+.track .lead .cred { font-weight: 600; }
+.track td.hit-refuted { background: var(--mark-bg); }
+.track td.hit-survived { background: var(--hold-bg); }
+.track td.hit-revised { background: var(--flag-bg); }
+.track td.gone { color: var(--line); }
+
+.hyp {
+  border-top: 1px solid var(--line-soft);
+  padding: 9px 0 2px;
+}
+.hyp-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hyp-id { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 600; }
+.hyp-state {
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+.hyp-state.refuted  { background: var(--mark-bg); color: var(--mark); }
+.hyp-state.supported{ background: var(--hold-bg); color: var(--hold); }
+/* A hypothesis's lifecycle: tested is the green of something still standing,
+   pending the amber of something waiting for its test, shelved is the pen. */
+.hyp-state.tested   { background: var(--hold-bg); color: var(--hold); }
+.hyp-state.pending  { background: var(--flag-bg); color: var(--flag); }
+.hyp-state.shelved  { background: var(--mark-bg); color: var(--mark); }
+.hyp-state.lead     { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hyp-meta { font-size: 11px; color: var(--muted); margin-left: auto;
+            font-variant-numeric: tabular-nums; }
+.hyp-text { margin-top: 3px; color: var(--ink-2); }
+.hyp.dead .hyp-text { color: var(--muted); }
+.hyp-why { margin-top: 2px; font-size: 12px; color: var(--muted); }
+.hyp-gone { margin-top: 2px; font-size: 12px; color: var(--mark); }
+
+/* The table has a few short columns; stretched to the pane the numbers drift
+   away from the ids they belong to. A percentage column width is what
+   stretches an auto table, so the 1% goes too. */
+.track.mapped table { width: auto; min-width: 50%; }
+.track.mapped td.hid, .track.mapped th.hid { width: auto; }
+.track .state { text-align: left; }
+.track tr.lead td.hid { color: var(--ink); font-weight: 600; }
+
+</style>
+
+<div class="app">
+  <header>
+    <h1>sheldon <em>trace</em> <i>console</i></h1>
+    <span class="meta" id="hdr-meta"></span>
+    <span class="spacer"></span>
+    <button class="ghost" id="theme">theme</button>
+  </header>
+
+  <nav class="pane rail" id="rail" aria-label="Runs"></nav>
+
+  <div class="pane tasks">
+    <div class="pane-head">
+      <div class="eyebrow" id="tasks-head">Tasks</div>
+      <div class="filters">
+        <input id="q" type="search" placeholder="task id" aria-label="Filter tasks by id">
+        <button class="toggle" id="only-fail" aria-pressed="false">failures</button>
+      </div>
+    </div>
+    <div id="tasklist"></div>
+  </div>
+
+  <main class="pane trace" id="trace"></main>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const DATA = JSON.parse(document.getElementById("data").textContent);
+const $ = (s) => document.querySelector(s);
+
+let runIdx = 0, taskId = null, onlyFail = false, query = "";
+
+/* ---------- theme ---------- */
+const THEME_KEY = "sheldon.theme";
+try { const t = localStorage.getItem(THEME_KEY); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === "dark" ? "light" : cur === "light" ? "" : "dark";
+  if (next) document.documentElement.dataset.theme = next;
+  else delete document.documentElement.dataset.theme;
+  try { next ? localStorage.setItem(THEME_KEY, next) : localStorage.removeItem(THEME_KEY); } catch (e) {}
+};
+
+/* ---------- helpers ---------- */
+const esc = (s) => String(s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+/* For attribute values: model-written text goes into `title`s, and one `"`
+   in an observation would end the attribute early. */
+const attr = (s) => esc(s).replace(/"/g, "&quot;");
+const dur = (s) => {
+  s = Number(s || 0);
+  if (s < 60) return s.toFixed(0) + "s";
+  if (s < 3600) return Math.floor(s / 60) + "m" + String(Math.round(s % 60)).padStart(2, "0") + "s";
+  return Math.floor(s / 3600) + "h" + String(Math.floor((s % 3600) / 60)).padStart(2, "0") + "m";
+};
+const money = (n) => "$" + Number(n || 0).toFixed(n >= 1 ? 2 : 4);
+const chipClass = (score) => (score >= 1 ? "chip pass" : score > 0 ? "chip part" : "chip");
+
+/* ---------- runs rail ---------- */
+function drawRail() {
+  const best = Math.max(...DATA.runs.map((r) => r.score || 0), 0.0001);
+  let html = "", lastBench = null;
+  DATA.runs.forEach((r, i) => {
+    if (r.benchmark !== lastBench) {
+      html += `<div class="bench">${esc(r.benchmark)}</div>`;
+      lastBench = r.benchmark;
+    }
+    html += `<button class="run" data-i="${i}" aria-current="${i === runIdx}">
+      <span class="run-top">
+        <span class="run-method">${esc(r.method)}</span>
+        ${r.tag ? `<span class="run-tag">${esc(r.tag)}</span>` : ""}
+        <span class="run-score num">${(r.score ?? 0).toFixed(3)}</span>
+      </span>
+      <span class="run-sub num">
+        <span>n=${r.n}</span><span>${money(r.cost_per_task)}/task</span><span>${dur(r.wall_s)}</span>
+        ${r.errors ? `<span class="run-err">${r.errors} err</span>` : ""}
+      </span>
+      <span class="bar"><i style="width:${((r.score || 0) / best) * 100}%"></i></span>
+    </button>`;
+  });
+  $("#rail").innerHTML = html;
+  $("#rail").querySelectorAll(".run").forEach((b) => {
+    b.onclick = () => { runIdx = +b.dataset.i; taskId = null; drawAll(); };
+  });
+}
+
+/* ---------- task list ---------- */
+function visibleTasks() {
+  const r = DATA.runs[runIdx];
+  if (!r) return [];
+  return r.tasks.filter((t) =>
+    (!onlyFail || t.score < 1) && (!query || t.id.toLowerCase().includes(query))
+  );
+}
+
+function drawTasks() {
+  const r = DATA.runs[runIdx];
+  const tasks = visibleTasks();
+  $("#tasks-head").textContent =
+    `Tasks \u00B7 ${tasks.length}${r && tasks.length !== r.tasks.length ? " of " + r.tasks.length : ""} \u00B7 worst first`;
+  $("#tasklist").innerHTML = tasks.map((t) => `
+    <button class="task" data-id="${esc(t.id)}" aria-current="${t.id === taskId}">
+      <span class="${chipClass(t.score)}" title="score ${t.score}"></span>
+      <span class="task-id mono">${esc(t.id)}</span>
+      <span class="task-sub num">${t.rounds != null ? "r" + t.rounds : ""} ${t.wall_s ? dur(t.wall_s) : ""}</span>
+    </button>`).join("") ||
+    `<div class="empty"><h2>Nothing matches</h2><p>Clear the filter or turn off <em>failures</em>.</p></div>`;
+  $("#tasklist").querySelectorAll(".task").forEach((b) => {
+    b.onclick = () => { taskId = b.dataset.id; drawTasks(); drawTrace(); };
+  });
+}
+
+
+/* ---------- belief state ---------- */
+
+/* The snapshot a `sheldon` run leaves in `Prediction.belief`: hypotheses
+   (pending, tested or shelved, each with the scores its artifacts measured),
+   observations with a verdict per hypothesis, and the regions both sit in.
+   A method that records no hypotheses gets no panel. */
+const idNum = (id) => { const d = String(id ?? "").replace(/\D/g, ""); return d ? +d : 1e9; };
+const bestOf = (h) => ((h.scores || []).length ? Math.max(...h.scores) : null);
+const fmtScore = (n) => (n == null ? "—" : Number(n).toPrecision(4).replace(/\.?0+$/, ""));
+
+/* How many observations support and refute a hypothesis, net. */
+function netEvidence(b, hid) {
+  let n = 0;
+  for (const o of b.observations || []) {
+    const rel = ((o.verdicts || {})[hid] || {}).relation;
+    if (rel === "supports") n += 1; else if (rel === "refutes") n -= 1;
+  }
+  return n;
+}
+
+/* Live hypotheses first, in the order the method ranks them -- best measured
+   score, then net evidence, ties by the number in the id so h10 does not sort
+   before h2 -- then the shelf. */
+function beliefOrder(b) {
+  const gone = (h) => (h.status === "shelved" ? 1 : 0);
+  const val = (h) => (bestOf(h) == null ? -Infinity : bestOf(h));
+  return (b.hypotheses || []).slice().sort((a, c) =>
+    gone(a) - gone(c) || val(c) - val(a)
+    || netEvidence(b, c.id) - netEvidence(b, a.id) || idNum(a.id) - idNum(c.id));
+}
+
+/* The live hypothesis at the top of that order, when anything stands behind
+   it: a measured score, or more evidence for it than against. */
+function beliefLeader(b) {
+  const top = beliefOrder(b)[0];
+  if (!top || top.status === "shelved") return null;
+  return bestOf(top) != null || netEvidence(b, top.id) > 0 ? top : null;
+}
+
+/* The observations bearing on one hypothesis, by relation. */
+function verdictsFor(b, hid, relation) {
+  return (b.observations || [])
+    .filter((o) => ((o.verdicts || {})[hid] || {}).relation === relation)
+    .map((o) => {
+      const why = o.verdicts[hid].why;
+      return `[${o.id}] ${o.content}${why ? "\n    → " + why : ""}`;
+    });
+}
+
+function regionLines(regions) {
+  return (regions || []).map((r) =>
+    `${r.axis} / ${r.name}${r.description ? " — " + r.description : ""}` +
+    ((r.merged_from || []).length ? ` (merged from ${r.merged_from.join(", ")} in round ${r.round})` : ""));
+}
+
+function beliefPanel(t) {
+  const b = t.belief;
+  if (!b || !(b.hypotheses || []).length) return "";
+  const order = beliefOrder(b);
+  const leader = beliefLeader(b);
+  const rounds = (b.best_by_round || []).length;
+
+  const rows = order.map((h) => {
+    const lead = leader && h.id === leader.id;
+    const cls = [lead ? "lead" : "", h.status === "shelved" ? "dead" : ""].join(" ").trim();
+    return `<tr class="${cls}">
+      <td class="hid">${esc(h.id)}${h.parent ? ` <span class="ref">←${esc(h.parent)}</span>` : ""}</td>
+      <td class="state"><span class="hyp-state ${attr(h.status)}">${esc(h.status)}</span></td>
+      <td>${fmtScore(bestOf(h))}</td>
+      <td>${(h.scores || []).length}</td>
+      <td>${verdictsFor(b, h.id, "supports").length}</td>
+      <td>${verdictsFor(b, h.id, "refutes").length}</td>
+    </tr>`;
+  }).join("");
+
+  const cards = order.map((h) => {
+    const lead = leader && h.id === leader.id;
+    const sup = verdictsFor(b, h.id, "supports");
+    const ref = verdictsFor(b, h.id, "refutes");
+    const metrics = Object.entries(h.metrics || {})
+      .map(([k, v]) => `${k}: ${fmtScore(v)}`).join("\n");
+    return `<div class="hyp${h.status === "shelved" ? " dead" : ""}">
+      <div class="hyp-top">
+        <span class="hyp-id">${esc(h.id)}</span>
+        <span class="hyp-state ${attr(h.status)}">${esc(h.status)}</span>
+        ${lead ? `<span class="hyp-state lead">leader</span>` : ""}
+        ${h.parent ? `<span class="ref">from <b>${esc(h.parent)}</b></span>` : ""}
+        <span class="hyp-meta">${h.region ? esc(h.region) + " · " : ""}best ${fmtScore(bestOf(h))} ·
+          ${(h.scores || []).length} measured · born r${h.born ?? 0}</span>
+      </div>
+      <div class="hyp-text">${esc(h.statement)}</div>
+      ${h.rationale ? `<div class="hyp-why">${esc(h.rationale)}</div>` : ""}
+      ${h.status === "shelved" && h.reason ? `<div class="hyp-gone">shelved: ${esc(h.reason)}</div>` : ""}
+      ${h.artifact ? block("artifact", h.artifact, "", false) : ""}
+      ${metrics ? block("metrics of the best artifact", metrics, "", false) : ""}
+      ${h.notes ? block("local loop notes", h.notes, "", false) : ""}
+      ${sup.length ? block(`supported by (${sup.length})`, sup.join("\n\n"), "result", false) : ""}
+      ${ref.length ? block(`refuted by (${ref.length})`, ref.join("\n\n"), "bad", false) : ""}
+    </div>`;
+  }).join("");
+
+  const obs = b.observations || [];
+  const seed = b.seed || {};
+  const hRegions = regionLines(b.h_regions), oRegions = regionLines(b.o_regions);
+  return `<section class="belief">
+    <div class="eyebrow">Belief state · ${rounds} round${rounds === 1 ? "" : "s"} ·
+      leader ${esc(leader ? leader.id : "—")}${
+      seed.score != null ? ` · seed ${fmtScore(seed.score)}` : ""}</div>
+    ${hRegions.length ? block(`hypothesis regions (${hRegions.length})`, hRegions.join("\n"), "", false) : ""}
+    ${oRegions.length ? block(`observation regions (${oRegions.length})`, oRegions.join("\n"), "", false) : ""}
+    ${block(`observations (${obs.length})`,
+            obs.map((o) => `• [${o.id}] ${o.content}`).join("\n\n"), "", false)}
+    <div class="track mapped"><table>
+      <thead><tr><th class="hid">hypothesis</th><th class="state">status</th>
+        <th>best</th><th>measured</th><th>supports</th><th>refutes</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    ${cards}
+  </section>`;
+}
+
+/* An event names `h4`; say what h4 is. Likewise `o4`, where the snapshot
+   carries the observation space — unless the event already quotes it. */
+function resolveRefs(e, belief) {
+  if (!belief) return "";
+  const by = {};
+  for (const h of belief.hypotheses || []) by[h.id] = h;
+  const out = [];
+  for (const key of ["hypothesis", "parent", "successor", "leader"]) {
+    const h = by[e[key]];
+    if (h) out.push(`<div class="ref"><b>${esc(h.id)}</b> ${esc(h.statement.slice(0, 260))}</div>`);
+  }
+  const obs = (belief.observations || []).find((o) => o && o.id === e.observation);
+  if (obs && e.content == null) {
+    out.push(`<div class="ref"><b>${esc(obs.id)}</b> ${esc(obs.content.slice(0, 260))}</div>`);
+  }
+  return out.join("");
+}
+
+/* ---------- trace ---------- */
+function block(label, body, cls, open) {
+  if (body == null || body === "") return "";
+  return `<details class="block"${open ? " open" : ""}><summary>${esc(label)}</summary>
+    <pre class="${cls || ""}">${esc(body)}</pre></details>`;
+}
+
+function contentToText(c) {
+  if (typeof c === "string") return c;
+  if (!Array.isArray(c)) return c == null ? "" : JSON.stringify(c, null, 2);
+  return c.map((b) => {
+    if (typeof b !== "object" || b === null) return String(b);
+    if (b.type === "text") return b.text || "";
+    if (b.type === "tool_use") return `[tool_use ${b.name}] ${JSON.stringify(b.input)}`;
+    if (b.type === "tool_result") return `[tool_result${b.is_error ? " error" : ""}] ${contentToText(b.content)}`;
+    return JSON.stringify(b, null, 2);
+  }).join("\n");
+}
+
+function renderEvent(e, belief) {
+  const kind = e.kind || "?";
+  let cls = "kind";
+  if (kind === "llm") cls += " llm";
+  else if (kind === "revise" || kind === "attack.revision" || kind === "hypothesis.refine") cls += " revise";
+  else if (kind === "hypothesis.retire") cls += " refuted";
+  else if (kind === "falsify.verdict" || kind === "belief.update") {
+    cls += e.refuted ? " refuted" : " survived";
+  }
+
+  let note = "", body = "";
+  if (kind === "llm") {
+    note = [e.tag, e.stop_reason, e.cached ? "cached" : null,
+            e.tools_offered ? e.tools_offered.join(" ") : null]
+      .filter(Boolean).join(" \u00B7 ");
+    body += block("system", e.system, "", false);
+    (e.messages || []).forEach((m, i) => {
+      body += block(m.role, contentToText(m.content), "", i === (e.messages.length - 1));
+    });
+    (e.thinking || []).forEach((t) => { body += block("thinking", t, "", false); });
+    body += block("reply", e.text, "assistant", true);
+    (e.tool_use || []).forEach((c) => {
+      body += block("call " + c.name, JSON.stringify(c.input, null, 2), "call", true);
+    });
+  } else if (kind === "tool") {
+    note = `${e.probe} \u00B7 ${e.ok ? "ok" : "failed"}`;
+    body += block("result", e.summary, e.ok ? "result" : "bad", true);
+  } else {
+    const rest = Object.fromEntries(Object.entries(e).filter(([k]) => k !== "kind" && k !== "t"));
+    const scalars = {}, lists = {};
+    for (const [k, v] of Object.entries(rest)) {
+      // A list of strings is the thing you came to read \u2014 `explore` returns
+      // observations and uncertainties this way. Raw JSON buries it.
+      if (Array.isArray(v) && v.every((x) => typeof x === "string")) lists[k] = v;
+      else scalars[k] = v;
+    }
+    const sk = Object.keys(scalars);
+    if (sk.length && sk.every((k) => typeof scalars[k] !== "object")) {
+      note = sk.map((k) => `${k}=${scalars[k]}`).join(" \u00B7 ");
+    } else if (sk.length) {
+      body += block("detail", JSON.stringify(scalars, null, 2), "", false);
+    }
+    for (const [k, v] of Object.entries(lists)) {
+      body += block(`${k} (${v.length})`, v.map((x) => "• " + x).join("\n\n"), "", true);
+    }
+  }
+
+  return `<div class="ev">
+    <div class="ev-time num">${(e.t ?? 0).toFixed(2)}s</div>
+    <div>
+      <div class="ev-head"><span class="${cls}">${esc(kind)}</span>
+        <span class="ev-note">${esc(note)}</span></div>
+      ${resolveRefs(e, belief)}
+      ${body}
+    </div>
+  </div>`;
+}
+
+/* Every run holding this same task id \u2014 the point of the whole page. */
+function compareStrip(id) {
+  const rows = DATA.runs.map((r, i) => ({ i, r, t: r.tasks.find((t) => t.id === id) }))
+                        .filter((x) => x.t);
+  if (rows.length < 2) return "";
+  return `<div class="compare">${rows.map(({ i, r, t }) => `
+    <button class="cmp" data-i="${i}" aria-current="${i === runIdx}">
+      <span class="${chipClass(t.score)}"></span>
+      <b>${esc(r.method)}</b>${r.tag ? `<span class="tag">${esc(r.tag)}</span>` : ""}
+      <span class="num">${t.score.toFixed(0)}</span>
+    </button>`).join("")}</div>`;
+}
+
+/* Traces are ~149 MB against a ~0.2 MB index, so a served page carries the
+   index and reads one trace when it is opened. An embedded page has them
+   already; a file:// page cannot fetch at all. */
+async function ensureTrace(r, t) {
+  if (DATA.embedded || !t || t.events) return;
+  if (t._loading) return t._loading;
+  t._loading = fetch(`task/${encodeURIComponent(r.run_id)}/${encodeURIComponent(t.id)}`)
+    .then((res) => (res.ok ? res.json() : null))
+    .then((body) => {
+      t.events = (body && body.events) || [];
+      t.belief = body && body.belief;
+      t._failed = !body;
+    })
+    .catch(() => { t.events = []; t._failed = true; });
+  return t._loading;
+}
+
+function drawTrace() {
+  const r = DATA.runs[runIdx];
+  const t = r && r.tasks.find((x) => x.id === taskId);
+  if (t && !DATA.embedded && !t.events) {
+    $("#trace").innerHTML = `<div class="empty"><h2>Reading the trace\u2026</h2></div>`;
+    ensureTrace(r, t).then(drawTrace);
+    return;
+  }
+  if (!t) {
+    $("#trace").innerHTML = r ? `
+      <div class="stat">
+        <div>score<b class="num">${(r.score ?? 0).toFixed(3)} \u00B1${(r.stderr ?? 0).toFixed(3)}</b></div>
+        <div>tasks<b class="num">${r.n}</b></div>
+        <div>cost<b class="num">${money(r.cost_usd)}</b></div>
+        <div>per task<b class="num">${money(r.cost_per_task)}</b></div>
+        <div>latency<b class="num">${dur(r.latency_mean_s)}</b></div>
+        <div>p90<b class="num">${dur(r.latency_p90_s)}</b></div>
+        <div>wall<b class="num">${dur(r.wall_s)}</b></div>
+        <div>rounds<b class="num">${(r.mean_rounds ?? 0).toFixed(1)}</b></div>
+        <div>model<b>${esc(r.model || "\u2014")}</b></div>
+      </div>
+      <div class="empty"><h2>${esc(r.method)} on ${esc(r.benchmark)}</h2>
+        <p>Pick a task to read its trace. The list is ordered worst first, because
+           that is what a trace gets opened for.</p></div>` :
+      `<div class="empty"><h2>No runs found</h2><p>Run <code>sheldon run</code> first, then regenerate.</p></div>`;
+    return;
+  }
+  const head = `<div class="pane-head"><div class="eyebrow">${esc(r.method)} \u00B7 ${esc(t.id)} \u00B7
+      score ${t.score}${t.stop_reason ? " \u00B7 " + esc(t.stop_reason) : ""}${t.error ? " \u00B7 error" : ""}</div></div>`;
+  const events = t.events && t.events.length
+    ? t.events.map((e) => renderEvent(e, t.belief)).join("")
+    : t._failed
+      ? `<div class="empty"><h2>Could not read the trace</h2>
+          <p>The file is missing, or the page was opened without its server.</p></div>`
+      : DATA.embedded
+        ? `<div class="empty"><h2>Trace not embedded</h2>
+            <p>This page carries a fixed budget of trace data and this task fell outside
+               it. Run <code>sheldon ui --serve</code> to read every trace, or raise
+               <code>--max-mb</code>.</p></div>`
+        : `<div class="empty"><h2>No trace recorded</h2>
+            <p>This run predates full call tracing.</p></div>`;
+  $("#trace").innerHTML = head + compareStrip(t.id) +
+    `<div class="stream">${beliefPanel(t)}${events}</div>`;
+  $("#trace").querySelectorAll(".cmp").forEach((b) => {
+    b.onclick = () => { runIdx = +b.dataset.i; drawAll(); };
+  });
+  $("#trace").scrollTop = 0;
+}
+
+function drawAll() { drawRail(); drawTasks(); drawTrace(); }
+
+$("#q").oninput = (e) => { query = e.target.value.trim().toLowerCase(); drawTasks(); };
+$("#only-fail").onclick = (e) => {
+  onlyFail = !onlyFail;
+  e.currentTarget.setAttribute("aria-pressed", String(onlyFail));
+  drawTasks();
+};
+
+$("#hdr-meta").textContent =
+  `${DATA.runs.length} runs \u00B7 generated ${DATA.generated}` +
+  (DATA.omitted && DATA.omitted.length ? ` \u00B7 ${DATA.omitted.length} with traces trimmed for size` : "");
+
+drawAll();
+</script>

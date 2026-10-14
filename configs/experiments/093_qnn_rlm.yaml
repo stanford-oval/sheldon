@@ -1,0 +1,45 @@
+# QNN circuit topology, `direct` on the Recursive Language Model engine.
+#
+#   sheldon run -c configs/experiments/093_qnn_rlm.yaml --tag exp093
+#
+# The companion to exp092 (same engine, ARC-AGI-2). One task: discover a
+# 2-qubit ansatz topology whose fitted parameters classify a sign-XOR dataset.
+#
+# Its own row, for the reasons the engine's docstring gives: RLM brings its own
+# REPL rather than taking `ctx.tools`, so it is not offered the evaluator probe
+# the toolloop runs get, and its model calls bypass the harness cache and
+# trace. Read it against exp017 (direct, 0.800), exp026 (sheldon, 0.867) and
+# exp027 (sheldon, 1.000) knowing the toolbox differs.
+#
+# Unlike ARC this benchmark has no answer on disk to hide -- the score comes
+# from fitting and measuring, not from a stored label -- so isolation is not
+# load-bearing here and is left to the benchmark's own default.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: eval
+limit: null
+method: direct
+engine: rlm
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 2.5
+concurrency: 1
+
+tag: exp093
+notes: >-
+  qnn_circuit_topology: direct on the RLM engine, terra. Companion to exp092.
+
+params:
+  probes: []
+  benchmark_opts:
+    tasks: qnn_circuit_topology
+  engine_params:
+    cwd: scratch/rlm-qnn-work
+    max_iterations: 8
+    max_depth: 1
+    max_timeout: 1200
+    timeout: 1500
+    rates: [2.50, 15.00]

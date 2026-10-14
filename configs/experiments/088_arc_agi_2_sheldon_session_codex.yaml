@@ -1,0 +1,57 @@
+# ARC-AGI-2, sheldon (hd-8b) in session mode with codex as the implementor.
+#
+#   sheldon run -c configs/experiments/088_arc_agi_2_sheldon_session_codex.yaml
+#
+# exp087 with the local build-and-test loops moved onto codex. The deciding
+# stages stay on toolloop because they have to: session mode refuses an engine
+# that brings its own tools, so `engine: codex` is rejected outright and
+# `candidate_analysis_engine` is the only way codex enters this method. That is the same
+# split as the skydiscover arms (076, 083) -- terra decides, codex builds.
+#
+# `isolate` matters more here than anywhere, in exp036's words: codex reads the
+# disk and data/arc-agi-2/evaluation/<id>.json holds every answer. The sandbox
+# mounts nothing of the repository and codex writes only to its own working
+# directory. The run refuses to start without bubblewrap.
+#
+# $10 a task, not exp022's $2.50. exp087 showed a single sheldon round
+# costing about $2 on ARC, so at $2.50 eight of its ten answered tasks ran one
+# round and the shelf, the revive path and the stagnation rule never acted.
+# Adding codex to the local loops raises the cost of a round again, so $2.50
+# here would buy less than one. Every other sheldon config runs at $10.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+limit: 20
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 10
+concurrency: 6
+
+tag: exp088
+notes: >-
+  ARC-AGI-2 eval, first 20: sheldon hd-8b session mode, deciding stages on
+  toolloop (terra), local loops on codex under bubblewrap. $10 per task.
+
+params:
+  mode: session
+  rounds: 6
+  n_initial: 5
+  select_k: 5
+  probes: []
+  candidate_analysis_engine: codex
+  candidate_analysis_engine_params:
+    isolate: true
+    cwd: scratch/arc2-hd-codex-work   # disposable; one subdir per codex call
+    mode: research
+    reasoning: high
+    timeout: 2400
+    usd_watchdog: true
+    usd_poll: 10
+    probe_timeout: 1200
+  benchmark_opts:
+    isolate: true

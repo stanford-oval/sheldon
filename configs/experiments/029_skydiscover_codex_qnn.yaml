@@ -1,0 +1,38 @@
+# The single-shot baseline on the codex engine, for the QNN topology task --
+# the one family no codex arm has touched.
+#
+#   sheldon run -c configs/experiments/023_skydiscover_codex_direct.yaml
+#
+# Why it is worth its own run: `direct` on the toolloop engine never improved
+# expert balance on eplb and never beat the starting program on prism, while
+# sheldon on codex reached 26.2 on prism honestly and 0.22 on eplb by reading the
+# evaluator's workload file. This separates the engine from the loop -- codex
+# brings its own shell and file access, so a single-shot arm on it says how much
+# of the codex result came from the agent rather than from the rounds.
+#
+# `offer_tools` is required: `evaluate_program` is the only way to score a
+# program, and an engine that brings its own tools is offered none by default.
+# Expect the evaluator exploits here too; read the submitted program before
+# quoting either number.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: eval
+method: direct
+engine: codex
+
+max_calls: null
+max_usd: 5
+concurrency: 2
+tag: exp029
+
+params:
+  offer_tools: true
+  benchmark_opts:
+    tasks: qnn_circuit_topology
+  engine_params:
+    cwd: scratch/sky-codex-work
+    mode: research
+    reasoning: low
+    timeout: 3600
+    usd_watchdog: true

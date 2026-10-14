@@ -1,0 +1,59 @@
+# exp087 continued: the same run with the cap raised to $40, so it picks up
+# where the $20 one stopped instead of starting over.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)-exp087r/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/090_dockstring_sheldon_continue40.yaml \
+#     --task ADRB1 --tag exp090-ADRB1
+#
+# sheldon has no checkpoints and the runner's resume is per task, so a
+# finished target cannot be resumed into. The continuation is the LLM cache:
+# `_cached` replays the stored `usage`, so `Budget` is charged what the first
+# rounds really cost and the loop arrives at its old stopping state having
+# spent $20 of the $40. Real new money is the second $20 -- `billed_usd` says
+# what was spent, `cost_usd` reads the notional $40. Both caches must be the
+# ones exp087r wrote or there is nothing to replay and the whole $40 runs live.
+#
+# Only the targets where SHELDON still leads: ADRB1 10.694 vs 11.264, F2 9.031
+# vs 9.853, PPARA 9.434 vs 9.611. Each has docking headroom -- exp087r used
+# 488-640 of the 1000 -- so the second half is not capped by the oracle.
+#
+# Everything else is config 087 unchanged: changing a param would move
+# `config_hash`, and a different hash is a different run whose prefix the cache
+# cannot serve.
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 40
+concurrency: 6
+tag: exp090
+notes: >-
+  dockstring continuation of exp087r, sheldon hd-8c session mode on terra,
+  1000 docking calls per target, $40 per target of which the first $20 replays
+  from exp087r's cache. ADRB1, F2 and PPARA only.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 12
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    max_docking_calls: 1000

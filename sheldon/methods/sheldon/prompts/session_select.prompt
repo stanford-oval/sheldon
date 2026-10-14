@@ -1,0 +1,22 @@
+{# Session turn: select. Only what changed since the last turn is sent; the rest is already in the conversation. #}
+[user]
+Next stage: select.
+
+## Choose
+
+- Candidates: {{ candidates | join(", ") }}. Choose at most {{ k }} to build and test this round; the rest are shelved and can be revived later.
+- Kept hypotheses ({{ kept | join(", ") if kept else "none" }}) carry over untested and take no slot.
+- Prefer tests that would settle what the evidence leaves open; spread across regions unless the evidence clearly favours one.
+- Call submit_selection once.
+
+## New since your last message
+
+**Hypotheses**
+
+{{ hypotheses or "(nothing new)" }}
+{% if observations %}
+
+**Observations**
+
+{{ observations }}
+{% endif %}

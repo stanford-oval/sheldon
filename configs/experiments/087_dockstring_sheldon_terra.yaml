@@ -1,0 +1,58 @@
+# DOCKSTRING molecule design, sheldon (hd-8c) session mode on terra, the six
+# Feedback Descent targets, 1000 docking evaluations per target, $20 per target.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/087_dockstring_sheldon_terra.yaml
+#
+# Both caches on local disk: the repo is on NFS and SQLite's WAL does not work
+# across NFS clients.
+#
+# Pacing: select_k 5 x candidate_analysis_max_evals 12 is at most 60 molecules a round, so
+# 1000 dockings is ~17 rounds of tested hypotheses. The run stops when the
+# docking budget is spent (`objective_exhausted`), the money is, or `rounds`.
+# A library molecule is read from the table rather than docked, but still
+# spends one of the 1000.
+#
+# probes: [] -- only the benchmark's own dock_molecule, molecule_properties and
+# search_similar_molecules. No shell: the prepared library sits on disk beside
+# the scores.
+#
+# Score: best molecule measured (`score_on: best`, the paper's reading), pass
+# at the target's 99.9th percentile of the library; `submitted_objective` and
+# `finalize_loss` say what finalize handed in.
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 20
+concurrency: 6
+tag: exp087
+notes: >-
+  dockstring, six targets, sheldon hd-8c session mode, terra decides and
+  proposes (toolloop), 1000 docking calls per target, $20 per target.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 12
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    max_docking_calls: 1000

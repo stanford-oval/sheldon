@@ -1,0 +1,52 @@
+# ARC-AGI-2 with sheldon (hd-8b), mode=session.
+#
+#   sheldon run -c configs/experiments/087_arc_agi_2_sheldon_session.yaml
+#
+# The first sheldon run on ARC. Every config for this method so far has
+# been skydiscover `ADRS.llm_sql` (075-077, 082-084), where an external codex
+# agent builds in a workspace against a scored evaluator. ARC is the other
+# shape: the evidence is the demonstration pairs already in the prompt, the
+# artifact is a `transform(grid) -> grid`, and there is no scored evaluator,
+# so the local loop takes its unscored path -- it stops when the agent says
+# done, when an iteration files nothing new, or at `candidate_analysis_max_evals`.
+#
+# The 20-task slice is exp022's, so the comparison is against a run that
+# exists: `arc-agi-2__sheldon__eval__exp022` at `limit: 20`, same split, same
+# seed, same model.
+#
+# `candidate_analysis_engine` is left unset, so the local loops run on the run's own engine
+# (toolloop) rather than codex. session mode requires a native tool-loop
+# engine in any case.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+limit: 20
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+# Spend binds, not rounds or calls -- exp022's setting, so the two runs stop
+# for the same reason. `rounds` below is the backstop the method applies when
+# `max_rounds` is unset.
+max_rounds: null
+max_calls: null
+max_usd: 2.5
+concurrency: 8
+
+tag: exp087
+notes: >-
+  ARC-AGI-2 eval, first 20 tasks: sheldon hd-8b in session mode on
+  toolloop, against exp022's sheldon run over the same 20.
+
+params:
+  mode: session
+  rounds: 6
+  n_initial: 5
+  select_k: 5
+  # `probes: []` leaves the benchmark's own `run_python` sandbox as the only
+  # tool, which is exp022's setting and the right one here: the generic three
+  # (web_search, web_fetch, run_shell) are dead weight on a benchmark whose
+  # entire evidence is in the prompt, and a search there spends a call to
+  # learn nothing.
+  probes: []

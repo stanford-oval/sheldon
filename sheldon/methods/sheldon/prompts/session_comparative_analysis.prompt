@@ -1,0 +1,25 @@
+{# Session turn: global test. Carries the local results, which happened outside the conversation. #}
+[user]
+Next stage: global test. {{ tested | join(", ") }} are tested; the local results that came back are below.
+
+## Read the local results with care
+
+- Scores and support/refute counts come from experiments that can themselves be flawed: a bug, a bad measurement, a narrow check.
+- Look at the artifacts and the evidence behind each result before trusting it.
+- Where two hypotheses predict different things, find out which happened. Compare their metrics part by part: a claim that loses overall can win somewhere.
+
+## What to submit
+
+- New observations, each with its observation region and the retrieval ids it rests on.
+- For each, a verdict (supports, refutes, neutral) on every hypothesis it bears on, with one line why.
+- Call submit_evidence once.
+
+## New since your last message
+
+**Hypotheses**
+
+{{ hypotheses or "(nothing new)" }}
+
+**Observations**
+
+{{ observations or "(nothing new)" }}

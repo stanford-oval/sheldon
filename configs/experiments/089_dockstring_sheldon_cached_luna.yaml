@@ -1,0 +1,46 @@
+# exp088 with the two cost fixes: `session_all_tools` (every session turn offers
+# the same submit tools, so the round's conversation stays cached across stage
+# switches -- on exp087 CDK2 revise, global test and select were billed 0% cached,
+# 45% of the run) and the local loops on luna (terra still decides). Two docking
+# evaluations per local loop, 1000 dockings and $40 per target.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)-exp089/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/089_dockstring_sheldon_cached_luna.yaml --task <TARGET> --tag exp089-<TARGET>
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 40
+concurrency: 6
+tag: exp089
+notes: >-
+  dockstring, six targets, sheldon hd-8c session mode, terra decides, luna
+  local loops, session_all_tools, 2 docking evaluations per local loop, 1000
+  dockings and $40 per target.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 2
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-luna
+  session_all_tools: true
+  benchmark_opts:
+    max_docking_calls: 1000

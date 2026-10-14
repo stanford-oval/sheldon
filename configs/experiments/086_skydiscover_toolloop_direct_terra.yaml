@@ -1,0 +1,33 @@
+# `direct` on the toolloop engine, terra, on the five ADRS tasks: exp085's
+# single-agent baseline with the engine changed from codex to our own tool
+# loop. Run twice (tags exp086a / exp086b) to see run-to-run spread.
+#
+#   sheldon run -c configs/experiments/086_skydiscover_toolloop_direct_terra.yaml --tag exp086a
+#   sheldon run -c configs/experiments/086_skydiscover_toolloop_direct_terra.yaml --tag exp086b
+#
+# Same toolbox as exp085 (default probes plus evaluate_program), same $5 and
+# benchmark_opts. `max_steps: 60` so money, not the engine's default of 4 tool
+# rounds, is what ends a run: exp085's codex agents stopped by themselves after
+# 3-7 evaluations and a few dozen shell calls.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: direct
+engine: toolloop
+model: gpt-5.6-terra
+
+max_calls: null
+max_usd: 5
+concurrency: 5
+tag: exp086
+
+params:
+  benchmark_opts:
+    tasks: ADRS.eplb,ADRS.prism,ADRS.cloudcast,ADRS.txn_scheduling,ADRS.llm_sql
+    runtime: host
+    isolate: true
+    eval_exclusive: 1
+    state_timeout: true
+  engine_params:
+    max_steps: 60

@@ -1,0 +1,32 @@
+{# Merge: a full map is settled before explore proposes anything. #}
+[system]
+You maintain the map of an investigation: hypothesis regions (kinds of answer) and observation regions (kinds of evidence), each grouped under axes. A map holds at most {{ limit }} regions per space, and {% if spaces | length == 1 %}the {{ "hypothesis" if spaces[0] == "h" else "observation" }} map is{% else %}both maps are{% endif %} full. Before this round explores, decide which regions to fold into one, so there is room for at least one new region in each full space.
+
+## How to merge
+
+- Merge regions that have turned out to mean the same thing, or that differ on a distinction the evidence has not needed.
+- Merge regions that went nowhere -- UNTRIED, or every hypothesis in them shelved -- into the nearest live region, so the map keeps what the search has learned and drops what it has not used.
+- Do not merge two regions that still hold competing live hypotheses: the point of the map is to keep them apart.
+- Each merge names two or more existing regions, the merged region's name (new, or one of the members), its axis, what it covers, and why. A merged region keeps every hypothesis and observation of its members.
+- At least one merge per full space. Several are fine. Call submit_merges once.
+
+[user]
+**Task**
+
+{{ situation }}
+
+**Hypothesis regions**{% if "h" in spaces %} (full){% endif %}
+
+{{ h_regions }}
+
+**Observation regions**{% if "o" in spaces %} (full){% endif %}
+
+{{ o_regions }}
+
+**Current hypotheses**
+
+{{ hypotheses }}
+
+**Observations**
+
+{{ observations }}

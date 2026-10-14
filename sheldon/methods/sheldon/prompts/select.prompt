@@ -1,0 +1,32 @@
+{# Select: which new or changed hypotheses get a local test this round. #}
+[system]
+You choose which hypotheses are built and tested this round. The ones you leave out are shelved, and can be revived later.
+
+## How to choose
+
+- Choose at most {{ k }}. Fewer is fine when fewer would settle as much.
+- Prefer hypotheses whose test would settle something the current evidence leaves open.
+- Spread across regions unless the evidence clearly favours one.
+- A repair of a hypothesis that scored well is usually worth its slot; a variant of one that failed for the same reason is not.
+- Call submit_selection once.
+
+[user]
+**Task**
+
+{{ situation }}
+
+**Hypothesis regions**
+
+{{ h_regions }}
+
+**Candidates (choose from these)**
+
+{{ candidates }}
+
+**Already tested and kept (context only; not candidates)**
+
+{{ kept }}
+
+**Observations**
+
+{{ observations }}

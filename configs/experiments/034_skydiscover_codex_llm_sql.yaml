@@ -1,0 +1,27 @@
+# `direct` on the codex engine for ADRS.llm_sql: exp023 with the task swapped and
+# the exploit judge on, since codex has a shell and the score is quoted against
+# EvoX (0.7300) and ScientistOne (0.7222).
+#
+#   sheldon run -c configs/experiments/034_skydiscover_codex_llm_sql.yaml
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: direct
+engine: codex
+
+max_calls: null
+max_usd: 5
+concurrency: 1
+tag: exp034r
+
+params:
+  offer_tools: true
+  benchmark_opts:
+    tasks: ADRS.llm_sql
+  engine_params:
+    cwd: scratch/sky-codex-work
+    mode: research
+    reasoning: low
+    timeout: 3600
+    usd_watchdog: true

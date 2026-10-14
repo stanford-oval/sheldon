@@ -1,0 +1,57 @@
+# sheldon (hd-7), mode=session, on llm_sql, against exp072's arm.
+#
+#   sheldon run -c configs/experiments/076_skydiscover_llm_sql_sheldon_session.yaml
+#
+# Same models and money as exp072: terra runs the deciding stages, codex under
+# luna runs the local build -> evaluate loop (at most 3 evaluations per
+# hypothesis, stopping after 2 measured iterations that gain under 0.5% of
+# the seed program's score, which is measured first). Round 1
+# tests all n_initial; later rounds at most select_k new/refined/repaired/
+# revived, with kept hypotheses carried untested.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 10
+concurrency: 1
+tag: exp076
+notes: >-
+  llm_sql, sheldon hd-7 mode=session: terra decides, codex (luna) builds and
+  evaluates locally. exp072's models and probes, $10 per run; at most 3 evaluations at once on the host.
+
+params:
+  mode: session
+  rounds: 8
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  probes: [run_shell]
+  candidate_analysis_engine: codex
+  candidate_analysis_engine_params:
+    model: gpt-5.6-luna
+    cwd: scratch/sky-codex-work
+    mode: research
+    reasoning: low
+    timeout: 3600
+    usd_watchdog: true
+    rates: [2.50, 15.00]
+    probe_timeout: 1200
+  benchmark_opts:
+    tasks: ADRS.llm_sql
+    isolate: true
+    runtime: host
+    sandbox_python: /path/to/sheldon/.venv   # absolute path to this checkout's virtualenv
+    eval_timeout: 900
+    show_evaluator: true
+    eval_exclusive: 3

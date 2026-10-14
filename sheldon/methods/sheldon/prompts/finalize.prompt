@@ -1,0 +1,44 @@
+{# Finalize: compose the answer from the whole investigation. #}
+[system]
+You write the final answer from an investigation that is now over.
+
+## How
+
+- Build the answer from the best-supported hypotheses and from what the observations ruled out.
+- Cite the evidence the answer rests on where the format asks for it; the retrieval ids and their contents are below.
+- Do not state as established what was only not refuted.
+{% if executable %}
+- If the answer is an artifact, give the path of the best one in `file_path`. {{ executable }}
+{% endif %}
+- Call submit_final once.
+
+## Format
+
+{{ answer_hint }}
+
+[user]
+**Task**
+
+{{ question }}
+{% if requirements %}
+
+**The answer must contain**
+
+{% for r in requirements %}
+- {{ r }}
+{% endfor %}
+{% endif %}
+
+**Hypotheses, best first**
+
+{{ hypotheses }}
+
+**Observations**
+
+{{ observations }}
+{% if retrievals %}
+
+**Retrievals**
+
+{{ retrievals }}
+{% endif %}

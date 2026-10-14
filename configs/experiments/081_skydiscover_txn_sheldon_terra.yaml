@@ -1,0 +1,55 @@
+# txn_scheduling, sheldon (sheldon hd-7) on terra throughout, with every
+# harness fix from exp078-080, under the conditions EvoX's evaluations had:
+#
+#   - terra builds as well as decides, so the reference is EvoX terra (4184)
+#   - seed_modules: the simulator and workloads beside the seed, so a program
+#     can be run and timed locally before an evaluation is spent (exp080)
+#   - eval_exclusive: 1: one evaluation at a time on the host. EvoX evaluated
+#     one program at a time on its own machine; exp078 ran up to three beside
+#     other runs, and 8 of its timed-out programs finished in 212-560 s alone
+#   - shell_nice: 10: the agent's own runs yield the core to the evaluator
+#   - state_timeout: the statement says the 600 s limit (upstream's, unchanged)
+#
+#   sheldon run -c configs/experiments/081_skydiscover_txn_sheldon_terra.yaml
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 10
+concurrency: 1
+tag: exp081
+notes: >-
+  txn_scheduling, sheldon hd-7 session mode, terra decides and builds
+  (toolloop), 20 probe calls per local iteration, $10. seed_modules,
+  one evaluation at a time, niced agent shells, time limit stated.
+
+params:
+  mode: session
+  rounds: 8
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: [run_shell]
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    tasks: ADRS.txn_scheduling
+    isolate: true
+    runtime: host
+    eval_exclusive: 1
+    seed_modules: true
+    shell_nice: 10
+    state_timeout: true

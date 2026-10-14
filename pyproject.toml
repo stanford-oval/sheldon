@@ -1,0 +1,53 @@
+[project]
+name = "sheldon"
+version = "0.1.0"
+description = "One hypothesis-loop algorithm, many benchmarks."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "anthropic>=0.69",
+    "jinja2>=3.1",
+    "openai>=1.50",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.6"]
+# Renders the trace console in a real browser. `tests/test_ui_render.py`
+# skips without it; two visually broken versions shipped before it existed.
+#   uv pip install ".[ui]" && python -m playwright install chromium
+ui = ["playwright>=1.40"]
+# DOCKSTRING docking. `dockstring` declares no dependencies (upstream ships a
+# conda env), so rdkit and numpy are named here, and `obabel` is a binary the
+# package shells out to -- openbabel-wheel is the pip route to it.
+#   uv pip install ".[dockstring]" && scripts/prepare_dockstring.py --download
+dockstring = ["dockstring>=0.3.4", "rdkit", "numpy", "openbabel-wheel"]
+
+[project.scripts]
+sheldon = "sheldon.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sheldon*"]
+
+# The trace console and the method's prompts are template files, not code, and
+# are read at runtime.
+[tool.setuptools.package-data]
+sheldon = ["ui/*.html", "methods/sheldon/prompts/*.prompt"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]

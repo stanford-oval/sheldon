@@ -1,0 +1,37 @@
+# data & results are reproducible artifacts, not source
+data/*
+!data/README.md
+!data/.gitkeep
+runs/*
+!runs/.gitkeep
+.cache/
+
+# secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# claude code local settings (shared config stays tracked)
+.claude/settings.local.json
+
+# editors / os
+.DS_Store
+.vscode/
+
+# scratch working directories for engines that need a real cwd
+scratch/
+.venv*/
+orca-bench/
+logs/
+# git worktrees Claude Code creates inside the repo: whole checkouts, never content
+.claude/worktrees/

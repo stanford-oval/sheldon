@@ -1,0 +1,44 @@
+# ARC-AGI-2, sheldon (hd-8b) session mode on luna, with room for rounds.
+#
+#   sheldon run -c configs/experiments/090_arc_agi_2_sheldon_session_luna.yaml
+#
+# exp087 answered its 20 tasks at a mean of 1.35 rounds because $2.50 buys
+# about one sheldon round on terra, and sheldon's exp022 got 4.15 rounds on
+# the same money because its rounds are cheaper. Comparing the two at that
+# point compared four rounds of one loop with one round of the other.
+#
+# Two changes, both aimed at rounds rather than at the method:
+#   * luna instead of terra -- 1.00/6.00 against 2.50/15.00 per million, so a
+#     round should cost about $0.80 rather than about $2.00.
+#   * $4 a task rather than $2.50. At the estimate that is five rounds; if a
+#     luna round somehow costs what a terra round cost, it is still two. The
+#     floor holds either way, which is the point of the headroom.
+#
+# The model changes as well as the budget, so this is not a clean ablation of
+# either one against exp087. It is the run that gives the method its rounds.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+limit: 20
+method: sheldon
+engine: toolloop
+model: gpt-5.6-luna
+
+max_rounds: null
+max_calls: null
+max_usd: 4
+concurrency: 8
+
+tag: exp090
+notes: >-
+  ARC-AGI-2 eval, first 20: sheldon hd-8b session mode on luna at $4 a
+  task, so the loop gets more than one round. Against exp087 (terra, $2.50,
+  1.35 rounds, 0.500) and sheldon exp022 (terra, $2.50, 4.15 rounds, 0.650).
+
+params:
+  mode: session
+  rounds: 6
+  n_initial: 5
+  select_k: 5
+  probes: []

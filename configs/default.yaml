@@ -1,0 +1,88 @@
+# Baseline settings. Experiment configs `extends: ../default.yaml` and override.
+benchmark: arc-agi-1
+method: sheldon
+split: eval
+limit: null          # null = the whole split
+seed: 0
+
+# How one "ask the model, let it act" step runs. `sheldon ls` lists them.
+#   toolloop  native tool calling (default)
+#   simple    one completion, tools ignored — the no-tools ablation
+#   react     Thought/Action/Observation as text; needs no tool support
+#   codex     external Codex CLI; brings its own tools, so tag it separately
+#   rlm       Recursive Language Model; brings its own REPL, same caveat
+engine: toolloop
+
+# auto picks the OpenAI-compatible endpoint when OPENAI_BASE_URL is set.
+provider: auto
+model: gpt-5.6-terra
+effort: high
+max_tokens: 16000
+thinking: true
+
+# per-task budget — the loop stops at whichever binds first; null lifts a cap
+max_rounds: 4
+max_calls: 40
+max_usd: 1.0
+
+concurrency: 8
+cache: true
+resume: true
+
+params:
+  # `sheldon`: plan once, then round by round -- explore, select, a local
+  # build-and-evaluate loop per chosen hypothesis, a global test across them,
+  # revise (keep | repair | refine | shelve) -- and finalize on the best
+  # measured artifact. The knobs set here are the ones this file changes or
+  # that are worth seeing at a glance; the rest default in the method's code.
+  #
+  # `staged`: each deciding stage is its own call over freshly rendered state.
+  # `session`: explore, select, global test and revise are turns of one
+  # conversation per round; needs a native tool-loop engine.
+  mode: staged
+  # One call before the rounds reads the task statement and separates the
+  # problem from the specification of the answer, so only the closing stage
+  # is handed sections, formats and a path. `-p plan=false` is the control;
+  # a split that comes back with an empty situation is rejected and the whole
+  # statement stands.
+  plan: true
+  plan_min_chars: 120
+  n_initial: 3               # hypotheses explore is asked to open with
+  n_explore: 3               # ...and in each later round
+  select_k: 5                # local tests per round; kept hypotheses take no slot
+  candidate_analysis_max_evals: 3         # evaluator runs per hypothesis per round
+  candidate_analysis_concurrent: true     # run the round's local loops at once
+  # The implementor: each local iteration is one engine call. Unset, it is the
+  # run's engine; `candidate_analysis_engine: codex` builds with an external coding agent
+  # while the deciding stages stay on the run's engine and model, and
+  # `candidate_analysis_engine_params` are that engine's knobs. Tag such an arm -- a run
+  # whose builder brings its own tools is not comparable to one that does not.
+  #   candidate_analysis_engine: codex
+  #   candidate_analysis_engine_params: {model: ..., timeout: 1800}
+  # Every stage that decides something can search first, where there is
+  # anything to search: the agent that searched should be the agent that
+  # decides. `stage_probes` is the switch for all of them; `<stage>_probes`
+  # overrides one. On a benchmark whose evidence is already in the prompt,
+  # like ARC, searching costs a call for nothing -- `-p stage_probes=false`
+  # is the control.
+  stage_probes: true
+  # `<stage>_probe_calls` is the tool-call ceiling the engine enforces for one
+  # stage call.
+  explore_probe_calls: 20    # explore is where looking before hypothesising pays
+  finalize_probe_calls: 20
+  # Tools reach every method identically, through ctx.tools. Per-benchmark
+  # switches live under benchmark_opts; `sandbox` (Python, on) and `oracle`
+  # (a checker for candidates, off) are the ones that matter on ARC.
+  benchmark_opts: {}
+  # The generic capabilities every run gets: look things up, read a page, and a
+  # shell. These are things an agent has anywhere -- not an interface invented
+  # here for one benchmark. Anything domain-shaped is the benchmark's to supply,
+  # and anything else is opt-in:
+  #   probes: [web_search, web_fetch, run_shell, run_python]
+  #   probes: [{web_search: {max_uses: 3, allowed_domains: [arxiv.org]}}]
+  #   probes: []            # nothing but what the benchmark offers
+  # `run_shell` opens in the run's per-task workspace, which the benchmark
+  # seeds (skydiscover puts the starting program there). Its command timeout
+  # defaults to 600s; raise it per arm with
+  #   probes: [web_search, web_fetch, {run_shell: {timeout: 900}}]
+  probes: [web_search, web_fetch, run_shell]

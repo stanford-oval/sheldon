@@ -1,0 +1,39 @@
+# ARC-AGI-2, direct method on the codex engine: one codex exec per test input.
+#
+#   sheldon run -c configs/experiments/036_arc_agi_2_codex_direct.yaml
+#
+# Its own row, never beside toolloop runs: codex brings its own shell and
+# model. Same per-task spend as the sheldon runs (exp022/exp035, $2.50), which
+# the usd watchdog enforces from the session rollout since an exec cannot be
+# stopped from outside by max_usd. The full eval split, 167 test inputs.
+#
+# `isolate` matters more here than anywhere: codex reads the disk, and
+# data/arc-agi-2/evaluation/<id>.json holds every answer. Under isolation the
+# sandbox mounts nothing of the repository; codex writes only to its own
+# working directory. The run refuses to start without bubblewrap.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+method: direct
+engine: codex
+
+max_rounds: null
+max_calls: null
+max_usd: 2.5
+concurrency: 6
+
+tag: exp036
+
+params:
+  probes: []
+  benchmark_opts:
+    isolate: true
+  engine_params:
+    isolate: true
+    cwd: scratch/arc2-codex-work   # disposable; one subdir per codex call
+    mode: research
+    reasoning: high
+    timeout: 2400
+    usd_watchdog: true
+    usd_poll: 10

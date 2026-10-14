@@ -1,0 +1,63 @@
+# llm_sql, sheldon (sheldon hd-8) on terra throughout, $20, under the
+# conditions EvoX's evaluations had. Reference: EvoX terra run 3 re-measured
+# on a quiet host at 0.7274 (runs 1-3 mean 0.7154); our best, hd-5, 0.7215.
+#
+#   - hd-8: a local loop starts from its own line (previous iteration, its own
+#     or its parent's artifact, else the seed), never from the run's leader;
+#     explore and revise see what supports and refutes each hypothesis; explore
+#     sees counts per axis as well as per region
+#   - terra builds as well as decides
+#   - eval_exclusive: 1: one evaluation at a time on the host. llm_sql's score
+#     includes wall clock, so two at once measure each other
+#   - shell_nice: 10, state_timeout, seed_modules (solver.py beside the seed)
+#   - eval_timeout: 900, as in 075-077. The limit covers the whole evaluator
+#     call, dataset loading and scoring included (~150 s), and at upstream's
+#     360 s the seed itself (~190 s of its own) timed out on its first run here
+#   - show_evaluator: true, as in every earlier llm_sql run (075-077)
+#
+#   sheldon run -c configs/experiments/082_skydiscover_llm_sql_sheldon_terra.yaml
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 20
+concurrency: 1
+tag: exp082
+notes: >-
+  llm_sql, sheldon hd-8 session mode, terra decides and builds (toolloop),
+  20 probe calls per local iteration, $20. One evaluation at a time, niced
+  agent shells, time limit stated, solver.py in the workspace.
+
+params:
+  mode: session
+  rounds: 12
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: [run_shell]
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    tasks: ADRS.llm_sql
+    isolate: true
+    runtime: host
+    sandbox_python: /path/to/sheldon/.venv   # absolute path to this checkout's virtualenv
+    eval_timeout: 900
+    show_evaluator: true
+    eval_exclusive: 1
+    seed_modules: true
+    shell_nice: 10
+    state_timeout: true

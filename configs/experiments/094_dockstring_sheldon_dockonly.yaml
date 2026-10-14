@@ -1,0 +1,70 @@
+# exp087's setup with the free tools removed: the docking oracle is the only
+# thing either arm can call.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)-exp093/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/094_dockstring_sheldon_dockonly.yaml \
+#     --task ADRB1 --tag exp094-ADRB1
+#
+# What comes out, and why each one has to go:
+#
+#   properties: false      `molecule_properties` settles the QED half of the
+#                          objective exactly, for free. Half the objective was
+#                          never being searched for -- it was being read.
+#   dataset_search: false  `search_similar_molecules` returns 260k already
+#                          measured compounds with their scores against this
+#                          target. It is both calibration and a route to a good
+#                          score that involves no design at all.
+#   sandbox: false         `run_python` imports rdkit, so QED is one call away,
+#                          and the library arrays sit in `data/dockstring`. Left
+#                          on, this ablation removes nothing from the sheldon arm
+#                          while removing both tools from CORAL, whose agent has
+#                          neither rdkit nor the data. That is not an ablation,
+#                          it is a handicap on one side.
+#
+# So the loop must predict drug-likeness rather than measure it, and has no
+# measured neighbours to anchor on -- every question about a molecule costs one
+# of the 1000 dockings. The CORAL arm runs the same ablation through
+# `NO_PROPS=1 NO_SEARCH=1`, which drops the `mol` shim and both prompt lines.
+#
+# Everything else is config 087 unchanged, so the difference from exp087's
+# numbers is the tools and nothing else.
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 20
+concurrency: 6
+tag: exp094
+notes: >-
+  dockstring, six targets, sheldon hd-8c session mode on terra, docking
+  oracle only -- no molecule_properties, no library search, no python sandbox.
+  1000 docking calls per target, $20 per target.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 12
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    max_docking_calls: 1000
+    properties: false
+    dataset_search: false
+    sandbox: false

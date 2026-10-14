@@ -1,0 +1,57 @@
+# exp087 (SHELDON) continued: another $20 on the belief state each target
+# stopped with, rather than another draw from the same config.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)-exp092/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/092_dockstring_sheldon_continue.yaml \
+#     --task ADRB1 --tag exp092-ADRB1 -p resume_from=exp087-ADRB1
+#
+# `resume_from` names the prior run per target, so it is a CLI flag rather than
+# a line here. `methods/sheldon/resume.py` restores four things: the belief
+# state from that run's `predictions.jsonl` (its `belief` field is the
+# snapshot), the round counter so this opens at 16 and `rounds` counts further
+# rounds, the docking budget through `Benchmark.probe_state` so the 1000
+# continues at 660/544/546/587/619/546 instead of resetting, and the retrieval
+# record and its files, or the restored observations' `r285` citations resolve
+# to nothing.
+#
+# The money deliberately does not carry: `Budget` starts fresh at $20, which is
+# the question -- what does a second $20 buy on top of the first.
+#
+# Everything else is config 087 unchanged.
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 20
+concurrency: 6
+tag: exp092
+notes: >-
+  dockstring continuation of exp087 (SHELDON), sheldon hd-8c session mode
+  on terra, a further $20 per target on the restored belief state, docking
+  budget continuing towards 1000.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 12
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    max_docking_calls: 1000

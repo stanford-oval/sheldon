@@ -1,0 +1,60 @@
+{# Local: one iteration of build -> evaluate -> learn, for one hypothesis. One block, no system turn: this goes to a coding agent (codex) as a single prompt. #}
+[user]
+You test one hypothesis. This is iteration {{ iteration }} of at most {{ max_iterations }}; each iteration builds on the last.
+
+## This iteration
+
+{% if executable %}
+- Build an artifact that expresses the hypothesis, write it to {% if artifact_path %}`{{ artifact_path }}`{% else %}a file of its own{% endif %}, and run it. {{ executable }}
+{% if scored %}
+- Measure it with `{{ evaluator }}`, once, on the file you wrote, and wait for the result: evaluations take turns, so a call can wait many minutes before it starts. Improve on the previous iteration where you can; a lower score is still a result.
+{% endif %}
+{% elif scored %}
+- Propose candidates that express the hypothesis and measure them with `{{ evaluator }}`. Each distinct candidate spends one of this loop's {{ max_iterations }} measurements, and repeating one is free.
+- Choose candidates that would tell you whether the claim holds, then improve on the best so far; a lower score is still a result.
+{% endif %}
+- Look for evidence that supports and that refutes the hypothesis. The observation regions below are kinds of evidence to look for, not tools.
+- Revise the claim only if evidence you gathered contradicts it, or a small change of approach -- not a code fix -- should help, and the revision predicts a better score (`predicts_improvement`). A finding that something does not help is an observation refuting the claim, not a revision.
+
+## What to submit
+
+- `observations`: what you found, each with its region, the retrieval ids it rests on, and a verdict on {{ hypothesis_id }}.
+- Separate a flaw in the artifact from a flaw in the claim; a crash is not a refutation.
+- Set `done` when another iteration would not add anything. End with submit_local: your final answer in its shape.
+
+## Context
+
+**Task**
+
+{{ situation }}
+
+**Hypothesis under test**
+
+{{ hypothesis }}
+{% if seed %}
+
+{{ seed }} Gains are measured against it.
+{% endif %}
+{% if base_artifact and executable %}
+
+**Start from this artifact**: `{{ base_artifact }}`{% if base_from %} ({{ base_from }}){% endif %}. Copy it to your artifact path and edit the copy; where it marks an editable region (for example between EVOLVE-BLOCK markers), change only what is inside that region.
+{% elif base_artifact %}
+
+**Best candidate on this line so far**: `{{ base_artifact }}`{% if base_from %} ({{ base_from }}){% endif %}.
+{% endif %}
+{% if repair %}
+
+**Repair requested** (keep the claim, fix how it is realized): {{ repair }}
+{% endif %}
+
+**Observation regions** (kinds of evidence)
+
+{{ o_regions }}
+{% if previous %}
+
+**Previous iterations**
+
+{% for p in previous %}
+- iteration {{ p.iteration }}: {% if p.score is not none %}score {{ p.score }}; {% endif %}{{ p.file_path or "no artifact" }}; {{ p.notes }}
+{% endfor %}
+{% endif %}

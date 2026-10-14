@@ -1,0 +1,44 @@
+# exp087 with two docking evaluations per local loop instead of twelve, and
+# $40 per target instead of $20. exp087 spent its 1000 dockings by design
+# (5 hypotheses x 12 = 60 a round); CORAL on the same six targets docks
+# 50-170 molecules and leads on CDK2 and PGR. At 2 a loop a round docks about
+# 10, so the run is bounded by money, not dockings.
+#
+#   SHELDON_CACHE=/tmp/sheldon-cache-$(id -u)-exp088/llm.db \
+#   SHELDON_DOCK_CACHE=/tmp/sheldon-dock-$(id -u)/dockstring.db \
+#   sheldon run -c configs/experiments/088_dockstring_sheldon_2evals.yaml --task <TARGET> --tag exp088-<TARGET>
+extends: ../default.yaml
+
+benchmark: dockstring
+split: eval
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 40
+concurrency: 6
+tag: exp088
+notes: >-
+  dockstring, six targets, sheldon hd-8c session mode on terra, 2 docking
+  evaluations per local loop, 1000 docking calls and $40 per target.
+
+params:
+  mode: session
+  rounds: 40
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 2
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: []
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    max_docking_calls: 1000

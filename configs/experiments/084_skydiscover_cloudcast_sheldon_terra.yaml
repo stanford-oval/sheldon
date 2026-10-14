@@ -1,0 +1,52 @@
+# cloudcast, sheldon (sheldon hd-8b) on terra throughout, $10: exp081's
+# recipe on the task where belief-18 reached 618.10 (exp050, $3.01 to first
+# measurement, $4.87 total). EvoX reruns sit at ~618; seed 1035.14.
+#
+#   - no eval_exclusive: the lock is per user and host-wide, exp083 holds it
+#     for ~150 s llm_sql evaluations, and cloudcast's score has no wall-clock
+#     term for a concurrent evaluation to distort
+#   - no seed_modules: the seed imports nothing from the evaluator directory,
+#     so the option would copy nothing
+#   - shell_nice: 10, state_timeout, as in 081-083
+#
+#   sheldon run -c configs/experiments/084_skydiscover_cloudcast_sheldon_terra.yaml
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: sheldon
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 10
+concurrency: 1
+tag: exp084
+notes: >-
+  cloudcast, sheldon hd-8b session mode, terra decides and builds
+  (toolloop), 20 probe calls per local iteration, $10. Niced agent shells,
+  time limit stated.
+
+params:
+  mode: session
+  rounds: 8
+  n_initial: 5
+  select_k: 5
+  candidate_analysis_max_evals: 3
+  candidate_analysis_min_gain_pct: 0.5
+  candidate_analysis_patience: 2
+  set_aside_cooldown: 3
+  stagnation_rounds: 2
+  candidate_analysis_concurrent: true
+  candidate_analysis_probe_calls: 20
+  probes: [run_shell]
+  candidate_analysis_engine: toolloop
+  candidate_analysis_engine_params:
+    model: gpt-5.6-terra
+  benchmark_opts:
+    tasks: ADRS.cloudcast
+    isolate: true
+    runtime: host
+    shell_nice: 10
+    state_timeout: true

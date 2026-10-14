@@ -1,0 +1,56 @@
+# ORCA-bench under upstream's own interface, codex as the engine.
+#
+# The agent gets upstream's instruction template, a
+# shell in the opentelemetry-demo source tree, and the live telemetry stack —
+# not our probe set — and is graded by upstream's verifier over the scenario's
+# whole rubric set. Run it with both methods to reproduce the comparison:
+#
+#   sheldon run -c configs/experiments/011_orca_codex_upstream.yaml \
+#       -m direct,sheldon --tag <your-tag>
+#
+# Paths below are one machine's; `data/README.md` says how to stand the
+# benchmark up elsewhere. `report_dir` is per-evaluation on
+# purpose — scoring reads report.md from there, and two runs sharing it would
+# grade each other's files.
+extends: ../default.yaml
+
+benchmark: orca-bench
+split: public
+method: direct
+engine: codex
+
+# Upstream's limits: one hour of wall clock per task and nothing else -- no
+# round, call or dollar ceiling (task.toml.template: agent timeout_sec 3600).
+max_rounds: null
+max_calls: null
+max_usd: null
+max_seconds: 3600
+max_tokens: 16384
+concurrency: 4
+
+# 11 incidents x easy/medium — the paired set every ORCA experiment here uses.
+tasks: orca-2f4a5d35-easy,orca-2f4a5d35-medium,orca-12ff110c-medium,orca-12ff110c-easy,orca-0b9c746d-medium,orca-0b9c746d-easy,orca-946a0e1a-medium,orca-0ad1b976-medium,orca-946a0e1a-easy,orca-0ad1b976-easy,orca-aa4b40ef-medium,orca-aa4b40ef-easy,orca-36a33f44-medium,orca-36a33f44-easy,orca-0b77bb59-medium,orca-0b77bb59-easy,orca-7159ddba-medium,orca-7159ddba-easy,orca-1aeb60f5-medium,orca-1aeb60f5-easy,orca-b33ed37b-medium,orca-b33ed37b-easy
+
+params:
+  benchmark_opts:
+    interface: upstream
+    # Run the agent's commands in a bubblewrap sandbox that sees only the demo
+    # source (read-only) and the task's report directory (writable). Without
+    # it codex agents read answers.json, the manifest, the rubrics and earlier
+    # runs' reports off the disk. Needs `bwrap`; the run refuses to start
+    # without it rather than fall back to the host filesystem.
+    isolate: true
+    # These are docker-mapped ports and they change on every `compose up`.
+    # `docker ps` on the orca-spike-* containers before a run.
+    grafana_url: http://localhost:32777
+    source_dir: orca-bench/upstream/opentelemetry-demo
+    instruction_template: orca-bench/upstream/harbor-template/instruction.md.template
+    verifier: orca-bench/upstream/check_prediction.py
+    rubrics_dir: orca-bench/upstream/share-2w/json
+    # Upstream's judge, baked into every published task: gpt-5.4 at high effort.
+    judge_model: gpt-5.4
+    judge_effort: high
+    report_dir: runs/orca-reports/eval
+  engine_params:
+    serve_probes: false
+    cwd: orca-bench/upstream/opentelemetry-demo

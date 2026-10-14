@@ -1,0 +1,48 @@
+# ARC-AGI-2, `direct` on the toolloop engine: the single-agent baseline the
+# first 20 eval tasks never had.
+#
+#   sheldon run -c configs/experiments/091_arc_agi_2_direct_toolloop.yaml --tag exp091
+#   sheldon run -c configs/experiments/091_arc_agi_2_direct_toolloop.yaml --tag exp091-test -p test_rule=true
+#
+# The only ARC-AGI-2 `direct` run on record is exp036, which is on codex and so
+# brings its own shell and model; it is its own row and never beside a toolloop
+# run. This is the missing comparison for exp022 (sheldon, 0.650), exp087
+# (sheldon terra, 0.500) and exp090 (sheldon luna, 0.350).
+#
+# Two arms, because "the baseline" is ambiguous on a benchmark with a sandbox:
+#
+# - **naive** (the default, `test_rule: false`) is what `direct` means, and on
+#   ARC-AGI-1 it left the sandbox unopened on 70% of tasks. It measures the
+#   model answering from the demonstration pairs alone.
+# - **told to test** (`-p test_rule=true`) spends up to `test_rule_calls` (12)
+#   running a candidate rule against the pairs before answering. That is the
+#   arm comparable to the loop methods, which all use `run_python` heavily, and
+#   on ARC-AGI-1 it was worth eighteen points over naive.
+#
+# Same money and toolbox as the runs it is read against: $2.50 a task,
+# `probes: []` leaving the benchmark's own sandbox as the only tool.
+# `max_steps: 60` so spend, not the engine's default tool-round ceiling, is
+# what ends a task -- a step ceiling must never be scored as a wrong answer.
+extends: ../default.yaml
+
+benchmark: arc-agi-2
+split: eval
+limit: 20
+method: direct
+engine: toolloop
+model: gpt-5.6-terra
+
+max_rounds: null
+max_calls: null
+max_usd: 2.5
+concurrency: 8
+
+tag: exp091
+notes: >-
+  ARC-AGI-2 eval, first 20: direct on toolloop, terra, $2.50. Run twice, naive
+  and with test_rule=true, as the single-agent baseline for exp022/087/090.
+
+params:
+  probes: []
+  engine_params:
+    max_steps: 60

@@ -1,0 +1,40 @@
+# `direct` on the codex engine, terra, on eplb, prism and cloudcast: the
+# single-agent baseline beside the sheldon/belief arms on the same tasks.
+# Run twice (tags exp085a / exp085b) to see run-to-run spread.
+#
+#   sheldon run -c configs/experiments/085_skydiscover_codex_direct_terra.yaml --tag exp085a
+#   sheldon run -c configs/experiments/085_skydiscover_codex_direct_terra.yaml --tag exp085b
+#
+# Engine settings as exp052 (mode research, reasoning low, usd watchdog, terra
+# rates, 1200 s probe timeout). `isolate` because codex has a shell and the
+# evaluator's data sits beside the workspace. `eval_exclusive: 1` because both
+# replicates run at once on one host and eplb's score has a speed term.
+extends: ../default.yaml
+
+benchmark: skydiscover
+split: adrs
+method: direct
+engine: codex
+model: gpt-5.6-terra
+
+max_calls: null
+max_usd: 5
+concurrency: 3
+tag: exp085
+
+params:
+  offer_tools: true
+  benchmark_opts:
+    tasks: ADRS.eplb,ADRS.prism,ADRS.cloudcast
+    runtime: host
+    isolate: true
+    eval_exclusive: 1
+    state_timeout: true
+  engine_params:
+    cwd: scratch/sky-codex-work
+    mode: research
+    reasoning: low
+    timeout: 3600
+    usd_watchdog: true
+    rates: [2.50, 15.00]
+    probe_timeout: 1200

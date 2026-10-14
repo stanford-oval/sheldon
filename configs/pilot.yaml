@@ -1,0 +1,7 @@
+# Fast, cheap loop for iterating on prompts. Use this before any full sweep.
+extends: default.yaml
+limit: 10
+max_rounds: 2
+max_usd: 0.25
+effort: medium
+tag: pilot
